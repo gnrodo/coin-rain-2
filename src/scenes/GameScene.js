@@ -14,10 +14,15 @@ export class GameScene extends Phaser.Scene {
         this.score = 0;
         this.lives = GAME_CONSTANTS.GAME_MECHANICS.INITIAL_LIVES;
         this.multiplier = 1;
+        // Celestial bodies
+        this.celestialContainer = null;
+        this.sun = null;
+        this.moon = null;
     }
     
     create() {
         this.setupBackground();
+        this.createCelestialBodies();
         this.createObjectPool();
         this.startSpawning();
         this.setupInput();
@@ -63,6 +68,212 @@ export class GameScene extends Phaser.Scene {
                 this.backgroundGraphics.fillStyle(0xffffff, alpha);
                 this.backgroundGraphics.fillCircle(x, y, size);
             }
+        }
+    }
+    
+    createCelestialBodies() {
+        const { gameWidth, gameHeight } = this.deviceManager.getDeviceInfo();
+        const scaleFactor = this.deviceManager.scaleFactor;
+        const safeArea = this.deviceManager.getSafeArea();
+        
+        // Create container for celestial bodies
+        this.celestialContainer = this.add.container(0, 0);
+        this.celestialContainer.setDepth(-10); // Behind falling objects but above background
+        
+        // Create Sun
+        this.createSun(safeArea.right - 80 * scaleFactor, safeArea.top + 80 * scaleFactor, scaleFactor);
+        
+        // Create Moon
+        this.createMoon(safeArea.left + 80 * scaleFactor, safeArea.top + 80 * scaleFactor, scaleFactor);
+        
+        // Initially show sun, hide moon
+        this.sun.setAlpha(1);
+        this.moon.setAlpha(0);
+        this.moon.setY(this.moon.y - 200 * scaleFactor); // Position moon above screen
+    }
+    
+    createSun(x, y, scaleFactor) {
+        const sunContainer = this.add.container(x, y);
+        const radius = 40 * scaleFactor;
+        
+        // Sun body with gradient
+        const sunBody = this.add.graphics();
+        
+        // Create radial gradient effect
+        for (let i = radius; i > 0; i--) {
+            const progress = 1 - (i / radius);
+            const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+                { r: 255, g: 215, b: 0 },  // Gold center
+                { r: 255, g: 165, b: 0 },  // Orange edge
+                1, progress
+            );
+            sunBody.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
+            sunBody.fillCircle(0, 0, i);
+        }
+        
+        // Create sun rays
+        const raysContainer = this.add.container(0, 0);
+        const numRays = 12;
+        
+        for (let i = 0; i < numRays; i++) {
+            const angle = (Math.PI * 2 / numRays) * i;
+            const ray = this.add.graphics();
+            
+            // Draw triangular ray
+            ray.fillStyle(0xFFD700, 0.8);
+            ray.beginPath();
+            ray.moveTo(0, 0);
+            
+            const rayLength = radius * 1.8;
+            const rayWidth = radius * 0.3;
+            
+            const x1 = Math.cos(angle - 0.1) * radius;
+            const y1 = Math.sin(angle - 0.1) * radius;
+            const x2 = Math.cos(angle + 0.1) * radius;
+            const y2 = Math.sin(angle + 0.1) * radius;
+            const x3 = Math.cos(angle) * rayLength;
+            const y3 = Math.sin(angle) * rayLength;
+            
+            ray.lineTo(x1, y1);
+            ray.lineTo(x3, y3);
+            ray.lineTo(x2, y2);
+            ray.closePath();
+            ray.fillPath();
+            
+            raysContainer.add(ray);
+        }
+        
+        sunContainer.add(raysContainer);
+        sunContainer.add(sunBody);
+        
+        // Add slow rotation animation to rays
+        this.tweens.add({
+            targets: raysContainer,
+            rotation: Math.PI * 2,
+            duration: 60000,
+            repeat: -1,
+            ease: 'Linear'
+        });
+        
+        // Add subtle pulsing animation
+        this.tweens.add({
+            targets: sunContainer,
+            scale: { from: 1, to: 1.1 },
+            duration: 3000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        this.celestialContainer.add(sunContainer);
+        this.sun = sunContainer;
+    }
+    
+    createMoon(x, y, scaleFactor) {
+        const moonContainer = this.add.container(x, y);
+        const radius = 35 * scaleFactor;
+        
+        // Moon body
+        const moonBody = this.add.graphics();
+        
+        // Create moon with gradient
+        for (let i = radius; i > 0; i--) {
+            const progress = 1 - (i / radius);
+            const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+                { r: 240, g: 240, b: 240 },  // Light silver
+                { r: 200, g: 200, b: 220 },  // Bluish silver edge
+                1, progress * 0.5
+            );
+            moonBody.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
+            moonBody.fillCircle(0, 0, i);
+        }
+        
+        // Add craters
+        const numCraters = 5;
+        for (let i = 0; i < numCraters; i++) {
+            const craterX = Phaser.Math.Between(-radius * 0.5, radius * 0.5);
+            const craterY = Phaser.Math.Between(-radius * 0.5, radius * 0.5);
+            const craterRadius = Phaser.Math.Between(3, 8) * scaleFactor;
+            
+            moonBody.fillStyle(0xC0C0C0, 0.3);
+            moonBody.fillCircle(craterX, craterY, craterRadius);
+        }
+        
+        // Create moon glow
+        const glowGraphics = this.add.graphics();
+        glowGraphics.fillStyle(0xB0C4DE, 0.3);
+        for (let i = 0; i < 3; i++) {
+            glowGraphics.fillCircle(0, 0, radius + (i * 10 * scaleFactor));
+            glowGraphics.setAlpha(0.3 - (i * 0.1));
+        }
+        
+        moonContainer.add(glowGraphics);
+        moonContainer.add(moonBody);
+        
+        // Add glow pulsing animation
+        this.tweens.add({
+            targets: glowGraphics,
+            alpha: { from: 0.3, to: 0.6 },
+            duration: 4000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // Add subtle floating animation
+        this.tweens.add({
+            targets: moonContainer,
+            y: y + 10 * scaleFactor,
+            duration: 5000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        this.celestialContainer.add(moonContainer);
+        this.moon = moonContainer;
+    }
+    
+    animateCelestialTransition(isNight) {
+        const scaleFactor = this.deviceManager.scaleFactor;
+        const { gameHeight } = this.deviceManager.getDeviceInfo();
+        
+        if (isNight) {
+            // Transition to night: sun goes down, moon comes up
+            this.tweens.add({
+                targets: this.sun,
+                y: gameHeight + 100,
+                alpha: 0,
+                duration: 500,
+                ease: 'Cubic.easeIn'
+            });
+            
+            this.tweens.add({
+                targets: this.moon,
+                y: this.deviceManager.getSafeArea().top + 80 * scaleFactor,
+                alpha: 1,
+                duration: 500,
+                ease: 'Cubic.easeOut',
+                delay: 250
+            });
+        } else {
+            // Transition to day: moon goes down, sun comes up
+            this.tweens.add({
+                targets: this.moon,
+                y: gameHeight + 100,
+                alpha: 0,
+                duration: 500,
+                ease: 'Cubic.easeIn'
+            });
+            
+            this.tweens.add({
+                targets: this.sun,
+                y: this.deviceManager.getSafeArea().top + 80 * scaleFactor,
+                alpha: 1,
+                duration: 500,
+                ease: 'Cubic.easeOut',
+                delay: 250
+            });
         }
     }
     
@@ -189,7 +400,7 @@ export class GameScene extends Phaser.Scene {
         this.isNightMode = true;
         this.multiplier = GAME_CONSTANTS.GAME_MECHANICS.NIGHT_MODE_MULTIPLIER;
         
-        // Animate background change
+        // Animate background change and celestial transition
         this.tweens.add({
             targets: this.backgroundGraphics,
             alpha: 0,
@@ -203,6 +414,9 @@ export class GameScene extends Phaser.Scene {
                 });
             }
         });
+        
+        // Animate celestial transition
+        this.animateCelestialTransition(true);
         
         // Show bonus message
         this.showBonusMessage('¡MODO BONUS X5 ACTIVADO!');
@@ -227,6 +441,9 @@ export class GameScene extends Phaser.Scene {
                 });
             }
         });
+        
+        // Animate celestial transition back to day
+        this.animateCelestialTransition(false);
         
         this.events.emit('bonusModeDeactivated');
     }
@@ -354,5 +571,23 @@ export class GameScene extends Phaser.Scene {
         // Resize game elements based on new device info
         this.cameras.main.setSize(deviceInfo.gameWidth, deviceInfo.gameHeight);
         this.updateBackground(this.isNightMode);
+        
+        // Reposition celestial bodies
+        if (this.sun && this.moon) {
+            const scaleFactor = this.deviceManager.scaleFactor;
+            const safeArea = this.deviceManager.getSafeArea();
+            
+            // Update sun position
+            this.sun.setPosition(
+                safeArea.right - 80 * scaleFactor,
+                this.isNightMode ? deviceInfo.gameHeight + 100 : safeArea.top + 80 * scaleFactor
+            );
+            
+            // Update moon position
+            this.moon.setPosition(
+                safeArea.left + 80 * scaleFactor,
+                this.isNightMode ? safeArea.top + 80 * scaleFactor : -200 * scaleFactor
+            );
+        }
     }
 }
