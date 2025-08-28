@@ -159,12 +159,15 @@ export class BootScene extends Phaser.Scene {
         // Handle device orientation or size changes
         console.log('Device changed:', deviceInfo);
         
-        // Update game scale
-        this.scale.resize(deviceInfo.gameWidth, deviceInfo.gameHeight);
+        // Since we're using RESIZE mode, Phaser handles the canvas resize automatically
+        // We just need to notify other scenes to update their elements
         
-        // Notify other scenes
-        this.scene.scenes.forEach(scene => {
-            if (scene.handleDeviceChange) {
+        // Update device manager's dimensions first
+        this.deviceManager.calculateGameDimensions();
+        
+        // Notify all active scenes
+        this.scene.manager.scenes.forEach(scene => {
+            if (scene.scene.isActive() && scene.handleDeviceChange) {
                 scene.handleDeviceChange(deviceInfo);
             }
         });

@@ -33,6 +33,7 @@ export class GameScene extends Phaser.Scene {
         
         // Create gradient background
         this.backgroundGraphics = this.add.graphics();
+        this.backgroundGraphics.setDepth(0); // Ensure background is at the bottom
         this.updateBackground(false);
     }
     
@@ -78,7 +79,7 @@ export class GameScene extends Phaser.Scene {
         
         // Create container for celestial bodies
         this.celestialContainer = this.add.container(0, 0);
-        this.celestialContainer.setDepth(-10); // Behind falling objects but above background
+        this.celestialContainer.setDepth(1); // Above background but behind falling objects
         
         // Create Sun
         this.createSun(safeArea.right - 80 * scaleFactor, safeArea.top + 80 * scaleFactor, scaleFactor);
@@ -568,26 +569,57 @@ export class GameScene extends Phaser.Scene {
     }
     
     handleDeviceChange(deviceInfo) {
-        // Resize game elements based on new device info
+        // Update device manager info
+        this.deviceManager.calculateGameDimensions();
+        const newScaleFactor = this.deviceManager.scaleFactor;
+        const safeArea = this.deviceManager.getSafeArea();
+        
+        // Update camera bounds
         this.cameras.main.setSize(deviceInfo.gameWidth, deviceInfo.gameHeight);
+        
+        // Update background
         this.updateBackground(this.isNightMode);
         
         // Reposition celestial bodies
         if (this.sun && this.moon) {
-            const scaleFactor = this.deviceManager.scaleFactor;
-            const safeArea = this.deviceManager.getSafeArea();
-            
             // Update sun position
             this.sun.setPosition(
-                safeArea.right - 80 * scaleFactor,
-                this.isNightMode ? deviceInfo.gameHeight + 100 : safeArea.top + 80 * scaleFactor
+                safeArea.right - 80 * newScaleFactor,
+                this.isNightMode ? deviceInfo.gameHeight + 100 : safeArea.top + 80 * newScaleFactor
             );
             
             // Update moon position
             this.moon.setPosition(
-                safeArea.left + 80 * scaleFactor,
-                this.isNightMode ? safeArea.top + 80 * scaleFactor : -200 * scaleFactor
+                safeArea.left + 80 * newScaleFactor,
+                this.isNightMode ? safeArea.top + 80 * newScaleFactor : -200 * newScaleFactor
             );
+            
+            // Update scale of celestial bodies
+            this.sun.setScale(newScaleFactor / this.deviceManager.scaleFactor * this.sun.scale);
+            this.moon.setScale(newScaleFactor / this.deviceManager.scaleFactor * this.moon.scale);
+        }
+        
+        // Update active falling objects
+        this.objectPool.forEach(obj => {
+            if (obj.active) {
+                // Maintain relative position
+                const relativeX = obj.x / this.cameras.main.width;
+                const relativeY = obj.y / this.cameras.main.height;
+                
+                // Update position based on new dimensions
+                obj.setPosition(
+                    relativeX * deviceInfo.gameWidth,
+                    relativeY * deviceInfo.gameHeight
+                );
+                
+                // Update scale
+                obj.setScale(newScaleFactor * 0.8);
+            }
+        });
+        
+        // Update spawn area boundaries for future spawns
+        if (this.spawnTimer) {
+            // Timer continues with updated boundaries (handled in spawnObject method)
         }
     }
 }

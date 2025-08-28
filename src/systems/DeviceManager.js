@@ -86,12 +86,22 @@ export class DeviceManager {
     }
     
     setupOrientationListeners() {
+        let resizeTimeout;
+        
         const handleResize = () => {
-            this.calculateGameDimensions();
-            // Dispatch custom event for game to respond
-            window.dispatchEvent(new CustomEvent('devicechange', {
-                detail: this.getDeviceInfo()
-            }));
+            // Clear previous timeout
+            if (resizeTimeout) {
+                clearTimeout(resizeTimeout);
+            }
+            
+            // Debounce resize events to avoid excessive updates
+            resizeTimeout = setTimeout(() => {
+                this.calculateGameDimensions();
+                // Dispatch custom event for game to respond
+                window.dispatchEvent(new CustomEvent('devicechange', {
+                    detail: this.getDeviceInfo()
+                }));
+            }, 100); // 100ms debounce
         };
         
         window.addEventListener('resize', handleResize);

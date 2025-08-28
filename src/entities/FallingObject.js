@@ -31,6 +31,9 @@ export class FallingObject extends Phaser.Physics.Arcade.Sprite {
         // Set texture to mystery initially
         this.setTexture('mystery');
         
+        // Ensure falling objects are above celestial bodies
+        this.setDepth(10);
+        
         // Set properties based on type
         if (type === 'bomb') {
             this.value = 0;

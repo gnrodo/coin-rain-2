@@ -14,10 +14,11 @@ export function createGameConfig() {
         height: deviceInfo.gameHeight,
         backgroundColor: '#87CEEB',
         scale: {
-            mode: Phaser.Scale.FIT,
+            mode: Phaser.Scale.RESIZE,
             autoCenter: Phaser.Scale.CENTER_BOTH,
             width: deviceInfo.gameWidth,
-            height: deviceInfo.gameHeight
+            height: deviceInfo.gameHeight,
+            parent: 'phaser-game'
         },
         physics: {
             default: 'arcade',

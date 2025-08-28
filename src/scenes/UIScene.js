@@ -175,23 +175,39 @@ export class UIScene extends Phaser.Scene {
     }
     
     handleDeviceChange(deviceInfo) {
-        // Reposition UI elements based on new safe area
+        // Update device manager dimensions
+        this.deviceManager.calculateGameDimensions();
         const safeArea = this.deviceManager.getSafeArea();
         const scaleFactor = this.deviceManager.scaleFactor;
         
+        // Update camera size
+        this.cameras.main.setSize(deviceInfo.gameWidth, deviceInfo.gameHeight);
+        
+        // Update score text
         this.scoreText.setPosition(safeArea.left + 10, safeArea.top + 10);
         this.scoreText.setFontSize(24 * scaleFactor);
         
+        // Update lives container position and scale hearts
         this.livesContainer.setPosition(safeArea.right - 120 * scaleFactor, safeArea.top + 10);
+        this.livesContainer.each(child => {
+            if (child.type === 'Text') {
+                child.setScale(scaleFactor);
+            }
+        });
         
+        // Update streak text
         this.streakText.setPosition(safeArea.left + 10, safeArea.top + 50);
         this.streakText.setFontSize(20 * scaleFactor);
         
+        // Update multiplier text
         this.multiplierText.setPosition(safeArea.left + 10, safeArea.top + 85);
         this.multiplierText.setFontSize(28 * scaleFactor);
         
-        this.bonusIndicator.setPosition(this.cameras.main.centerX, safeArea.top + 50);
+        // Update bonus indicator position
+        this.bonusIndicator.setPosition(deviceInfo.gameWidth / 2, safeArea.top + 50);
+        this.bonusIndicator.setFontSize(32 * scaleFactor);
         
+        // Recreate lives display with new scale
         this.updateLivesDisplay();
     }
 }
